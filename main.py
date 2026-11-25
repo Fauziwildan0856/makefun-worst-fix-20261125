@@ -1,47 +1,48 @@
-"""Publish one commit message as entry.txt.
+"""Write the worst-fix commit message to entry.txt.
 
-The program writes a single-line commit message for a bug fix that made
-everything worse to $MAKEFUN_OUTPUT_DIR/entry.txt, then reads it back to
-prove the file holds exactly the message. Only the Python standard
-library is used.
+The program holds one commit message for a bug fix that made everything
+worse, writes it to $MAKEFUN_OUTPUT_DIR/entry.txt, and reads the file
+back to prove the written text is exactly the message. Only the Python
+standard library is used, so the grader's bare interpreter can run it.
 """
 
 import os
 import sys
 
-# Gate from the kit: the message must be 1 to MAX_CHARS characters, one line.
 MAX_CHARS = 100
 
-ENTRY = "fix: resolved the crash by deleting the users; zero crashes reported since"
+MESSAGE = "fix: resolved the crash by deleting the users; zero crashes reported since"
+
+
+def fail(reason):
+    print("entry rejected: " + reason, file=sys.stderr)
+    return 1
 
 
 def main():
-    if "\n" in ENTRY or "\r" in ENTRY:
-        print("entry must be a single line", file=sys.stderr)
-        return 1
-    if not 1 <= len(ENTRY) <= MAX_CHARS:
-        print("entry must be 1 to %d characters" % MAX_CHARS, file=sys.stderr)
-        return 1
-    if ENTRY != ENTRY.strip():
-        print("entry must not have leading or trailing whitespace", file=sys.stderr)
-        return 1
-    if not any(ch.isalnum() for ch in ENTRY):
-        print("entry must contain at least one letter or digit", file=sys.stderr)
-        return 1
-    if not ENTRY.startswith("fix:"):
-        print("entry must read as a fix commit message", file=sys.stderr)
-        return 1
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "output")
+    text = MESSAGE
+    if text != text.strip():
+        return fail("message must not start or end with whitespace")
+    if "\n" in text or "\r" in text:
+        return fail("message must be a single line")
+    if not 1 <= len(text) <= MAX_CHARS:
+        return fail("message must be 1 to %d characters" % MAX_CHARS)
+    if not any(ch.isalnum() for ch in text):
+        return fail("message must contain a letter or a digit")
+    if not text.startswith("fix:"):
+        return fail("message must read as a fix commit message")
+
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR")
+    if not out_dir:
+        return fail("MAKEFUN_OUTPUT_DIR is not set")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "entry.txt")
     with open(path, "w", encoding="utf-8") as handle:
-        handle.write(ENTRY)
-    with open(path, "r", encoding="utf-8") as handle:
-        written = handle.read()
-    if written != ENTRY:
-        print("read-back mismatch", file=sys.stderr)
-        return 1
-    print("entry OK:", len(ENTRY), "characters (max %d)" % MAX_CHARS)
+        handle.write(text)
+    with open(path, encoding="utf-8") as handle:
+        if handle.read() != text:
+            return fail("read-back does not match the message")
+    print("wrote %d characters to %s" % (len(text), path))
     return 0
 
 
